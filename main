@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# --------------------------
+# Image Conversion Script
+# --------------------------
+# 
+# This script recursively goes through a directory of JPEG images, resizes them (if not already smaller) to have a maximum dimension of 2048px on the long side,
+# and then converts them to WebP format while ensuring the resulting file size is below a certain limit (300KB).
+# 
+# --------------------------
+# Dependencies
+# --------------------------
+#
+# This script requires the following tools:
+# - ImageMagick (for the 'convert' command)
+# - cwebp (from the libwebp toolkit, for the 'cwebp' command)
+#
+# You can install these on macOS using Homebrew with the commands:
+# brew install imagemagick
+# brew install webp
+#
+# --------------------------
+# Usage
+# --------------------------
+# 
+# 1. Replace "/path/to/your/input/directory" and "/path/to/your/output/directory" with the paths to your directories.
+# 2. Save this script to a file, such as "convert_images.sh".
+# 3. Make the script executable: chmod +x convert_images.sh
+# 4. Run the script: ./convert_images.sh
+# 
+# --------------------------
+
+# Set the initial quality
+quality=100
+
+# Set the maximum file size in bytes (300KB)
+max_size=307200
+
+# Set the source and destination directories
+source_dir="/path/to/your/input/directory"
+dest_dir="/path/to/your/output/directory"
+
+# Loop over each jpeg file in the source directory
+for file in "$source_dir"/*; do
+
+  # Resize the image to 2048x2048 maximum dimension
+  convert "$file" -resize '2048x2048>' /tmp/temp.jpg
+  
+  # Convert the image to WebP format with the current quality
+  cwebp -q $quality /tmp/temp.jpg -o "$dest_dir"/"$(basename "$file" .jpg)".webp
+
+  # Get the size of the resulting file
+  size=$(stat -f%z "$dest_dir"/"$(basename "$file" .jpg)".webp)
+
+  # While the file is too large and the quality is greater than 0
+  while [ $size -gt $max_size ] && [ $quality -gt 0 ]; do
+
+    # Reduce the quality by 5
+    quality=$((quality - 5))
+
+    # Try converting the image again with the lower quality
+    cwebp -q $quality /tmp/temp.jpg -o "$dest_dir"/"$(basename "$file" .jpg)".webp
+
+    # Get the size of the resulting file
+    size=$(stat -f%z "$dest_dir"/"$(basename "$file" .jpg)".webp)
+  done
+
+  # Reset the quality for the next file
+  quality=100
+done
